@@ -1,0 +1,9 @@
+file_data.txt
+golden_result.txt
+work/
+*.wlf
+*.vcd
+*.mpf
+*.cr.mti
+transcript
+*.log
