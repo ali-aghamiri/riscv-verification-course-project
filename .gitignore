@@ -7,3 +7,6 @@ work/
 *.cr.mti
 transcript
 *.log
+__pycache__/
+*.pyc
+trace.csv
