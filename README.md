@@ -4,7 +4,7 @@ A SystemVerilog coursework project exploring stimulus generation and a behaviora
 
 ## Project scope
 
-The assignment was organized into four stages: study the reference processor, generate verification stimuli, build a golden model and inspect code coverage, then add a checker and scoreboard. This repository contains the submitted stimulus generators and golden model from the first three stages. **A checker and scoreboard are not present in the available submission**, so this is a partial verification environment rather than a complete self-checking testbench.
+The assignment was organized into four stages: study the reference processor, generate verification stimuli, build a golden model and inspect code coverage, then add a checker and scoreboard. This repository contains selected implementation files from stages two and three. The stage-one research report is not included. **A checker and scoreboard are not present in the available submission**, so this is a partial verification environment rather than a complete self-checking testbench.
 
 The deterministic generator encodes selected RISC-V instruction scenarios and corner cases. The random generator creates constrained instruction sequences across R, I, S, U, B, and J formats. Both write hexadecimal machine words to `file_data.txt`. The golden model reads that file and writes `golden_result.txt`. The original SystemVerilog module and file names are retained, including their spelling, to preserve the submitted code.
 
