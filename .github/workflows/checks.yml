@@ -1,0 +1,25 @@
+name: Python checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  reference-and-vectors:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Unit tests
+        run: python -m unittest discover -s tests -v
+      - name: Generate directed vectors
+        run: python tools/build_test_vectors.py --case directed --out build/directed
+      - name: Generate branch and memory vectors
+        run: python tools/build_test_vectors.py --case branch_edges --out build/branch_edges
+      - name: Generate constrained-random ALU vectors
+        run: python tools/build_test_vectors.py --case random_alu --out build/random_alu

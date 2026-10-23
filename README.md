@@ -1,59 +1,87 @@
-# RISC-V Verification Coursework
+# RV32I Processor Verification
 
-A SystemVerilog coursework project exploring stimulus generation and a behavioral reference model for a provided RISC-V processor design. The original files were produced for a master's-level HDL verification course.
+A reproducible verification project for a five-stage RV32I processor. It combines
+SystemVerilog stimulus work from a master's HDL verification course with a
+post-course, self-checking testbench. The testbench runs an attributed teaching
+core, compares every nonzero register writeback against an independent Python
+instruction-set model, and checks the final data-memory state.
 
-For a stage-by-stage account of the assignment and saved submissions, see [Coursework map](docs/coursework.md).
+## Verified run
 
-## Project scope
+Two directed programs exercise dependent arithmetic, loads and stores,
+byte and halfword accesses, sign extension, signed and unsigned comparisons,
+taken and untaken branches, JAL, JALR, AUIPC, and shifts. A third,
+seeded constrained-random program stresses register dependencies and ALU
+operations. On ModelSim SE 10.6d, the 30-word directed program passes 21
+writebacks, the 20-word branch/memory program passes 12, and the 82-word
+random program passes 80. All three pass full 256-word data-memory
+comparisons. Seven Python unit tests pass. A deliberately corrupted expected
+writeback causes the SystemVerilog scoreboard to report a mismatch.
 
-The assignment was organized into four stages: study the reference processor, generate verification stimuli, build a golden model and inspect code coverage, then add a checker and scoreboard. This repository contains selected implementation files from stages two and three. The stage-one research report is not included. **A checker and scoreboard are not present in the available submission**, so this is a partial verification environment rather than a complete self-checking testbench.
+## Run it
 
-The deterministic generator encodes selected RISC-V instruction scenarios and corner cases. The random generator creates constrained instruction sequences across R, I, S, U, B, and J formats. Both write hexadecimal machine words to `file_data.txt`. The golden model reads that file and writes `golden_result.txt`. The original SystemVerilog module and file names are retained, including their spelling, to preserve the submitted code.
+Requires Python 3.11+ and ModelSim/Questa with `vlib`, `vlog`, and `vsim`.
+From the repository root:
+
+```bash
+python -m unittest discover -s tests -v
+python tools/run_rtl.py --modelsim-bin "C:/path/to/modelsim/win64"
+```
+
+If the simulator executables are on `PATH`, omit `--modelsim-bin`. The second
+command generates the program and oracle under `build/`, compiles the core
+and testbench, then runs the simulation. Success prints:
+
+```text
+directed: PASS: 21 writebacks, control flow, data memory
+branch_edges: PASS: 12 writebacks, control flow, data memory
+random_alu: PASS: 80 writebacks, control flow, data memory
+```
+
+`tools/build_test_vectors.py` can generate the vectors independently, and
+`tools/rv32i_reference.py` can execute a hexadecimal program and emit a CSV
+trace. `tools/compare_traces.py` compares two traces in
+`pc,instruction,rd,value` format.
+
+## How the check works
+
+The Python RV32I model produces expected architectural writebacks before
+simulation. The SystemVerilog testbench observes the pipelined core's
+writeback stage and checks the register number and value in order. It also
+models a small byte-enabled data memory and checks its final state. A timeout
+fails a run that never reaches the final store. The directed programs contain
+wrong-path writes so a failed branch flush is visible to the scoreboard.
+
+The verification compares architectural results, not internal pipeline
+cycle timing. The current directed scenario is intentionally bounded rather
+than a claim of exhaustive ISA or coverage verification.
 
 ## Repository layout
 
-```text
-src/
-  determenstic_stimuli_genrator.sv  # directed instruction scenarios
-  random_stimuli_genrator.sv        # constrained random stimuli
-  goldenmodel.sv                    # behavioral reference model
-examples/
-  instruction_memory.txt            # original stage-two sample (contains unsupported words)
-  smoke_program.txt                 # validated post-course example
-reports/
-  coverage-report.txt               # archived simulator coverage output
-docs/
-  coursework.md                     # assignment stages and provenance
-tools/
-  rv32i_reference.py                # independent post-course ISA model
-  compare_traces.py                 # post-course trace checker
-tests/
-  test_reference.py                 # model and checker tests
-```
+| Path | Purpose |
+| --- | --- |
+| `src/` | Original course stimulus generators and golden model |
+| `tb/` | Post-course self-checking SystemVerilog testbench |
+| `tools/` | Independent RV32I model, vector generator, runner, and trace checker |
+| `tests/` | Python unit tests |
+| `third_party/riscv-simple-sv/` | BSD-3-Clause teaching processor core |
+| `examples/` | Saved course memory sample and validated small example |
+| `reports/` | Archived simulator coverage report from the course |
+| `docs/coursework.md` | Assignment stages and provenance |
 
-## Using the source
+The original generators and golden model remain available for inspection.
+The self-checking run uses the new Python oracle because the archived
+SystemVerilog golden model contains an out-of-bounds immediate bit and other
+unreviewed behavior. The saved `examples/instruction_memory.txt` includes an
+unsupported word at PC `0x34`; it is preserved as a course artifact, while
+`examples/smoke_program.txt` is a validated example.
 
-The generators and model were written for a SystemVerilog simulator with support for file I/O and `$urandom_range` (the coursework used ModelSim). Run **one** generator in the simulator to create `file_data.txt`, then run `goldenmodel` in the same working directory to produce `golden_result.txt`. The generators are standalone top-level modules; they are not meant to run together because both write to the same file.
+## Attribution
 
-For a full processor comparison, the course-provided RISC-V design and its testbench are also required. They are intentionally excluded here because the available coursework does not establish redistribution rights for that reference design. The supplied processor comparison and coverage run have not been reproduced here; the coverage report is an artifact of the original course run.
-
-## Validation and limitations
-
-The three source modules compile in ModelSim SE 10.6d with zero errors and 31 warnings. The deterministic generator ran and produced 116 hexadecimal instruction words. The golden model and processor comparison were not run in this preparation pass. One compiler warning points to an out-of-bounds immediate bit in the golden model (`imm[12]` in a 12-bit vector); its behavior needs further review before treating model outputs as authoritative. The deterministic generator also emits some instruction words that may not represent valid supported instructions. No fresh coverage percentage is claimed.
-
-## Post-course validation extension
-
-The `tools/` directory is a **new addition after the course**, separate from the original SystemVerilog submission. It contains a bounded, instruction-level RV32I reference model and a CSV trace checker. It does not model pipeline timing or replace a DUT-integrated scoreboard. A DUT can be compared only after it exports a matching `pc,instruction,rd,value` trace.
-
-Run the validated example and tests with Python 3.11 or newer:
-
-```bash
-python tools/rv32i_reference.py examples/smoke_program.txt --trace trace.csv
-python -m unittest discover -s tests -v
-```
-
-The archived `examples/instruction_memory.txt` is not a validated RV32I program: the reference model stops at PC `0x34` on unsupported word `0x00ad0e80`. It is retained as evidence of the stage-two submission rather than presented as a passing test. The new smoke example is separate and passes the model tests.
-
-## Status and provenance
-
-The source files and coverage output were selected from the student's stage-three submission. The sample memory file comes from stage two. Simulator-generated databases, waveform files, duplicate archives, course slides, and the supplied processor implementation have been left out. The code remains close to the original submission, so it should be treated as an academic project rather than a maintained verification library.
+The processor RTL is the teaching core from
+[RISC-V SiMPLE SV](https://github.com/tilk/riscv-simple-sv), distributed under
+BSD-3-Clause. Its license and author attribution are retained in
+`third_party/riscv-simple-sv/` and [THIRD_PARTY.md](THIRD_PARTY.md). The
+processor code is not presented as student-authored work. The original
+coursework and the later verification extensions are distinguished in
+[docs/coursework.md](docs/coursework.md).

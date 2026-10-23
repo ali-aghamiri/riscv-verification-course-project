@@ -17,11 +17,12 @@ def signed(value: int, bits: int) -> int:
 
 
 class RV32I:
-    def __init__(self, words: list[int]):
+    def __init__(self, words: list[int], base: int = 0):
         self.words = words
+        self.base = base
         self.reg = [0] * 32
         self.memory: dict[int, int] = {}
-        self.pc = 0
+        self.pc = base
 
     def load(self, address: int, size: int, sign: bool) -> int:
         value = sum(self.memory.get((address + i) & MASK, 0) << (8 * i) for i in range(size))
@@ -32,10 +33,10 @@ class RV32I:
             self.memory[(address + i) & MASK] = (value >> (8 * i)) & 0xFF
 
     def step(self) -> tuple[int, int, int, int]:
-        if self.pc % 4 or self.pc < 0 or self.pc // 4 >= len(self.words):
+        if self.pc % 4 or self.pc < self.base or (self.pc - self.base) // 4 >= len(self.words):
             raise ValueError(f"PC outside instruction stream: 0x{self.pc:08x}")
         old_pc = self.pc
-        inst = self.words[old_pc // 4]
+        inst = self.words[(old_pc - self.base) // 4]
         opcode, rd, f3 = inst & 0x7F, (inst >> 7) & 31, (inst >> 12) & 7
         rs1, rs2, f7 = (inst >> 15) & 31, (inst >> 20) & 31, (inst >> 25) & 127
         a, b = self.reg[rs1], self.reg[rs2]
@@ -107,7 +108,7 @@ class RV32I:
     def run(self, max_steps: int = 10000) -> list[tuple[int, int, int, int]]:
         trace = []
         for _ in range(max_steps):
-            if self.pc == len(self.words) * 4: return trace
+            if self.pc == self.base + len(self.words) * 4: return trace
             trace.append(self.step())
         raise ValueError(f"Step limit reached ({max_steps}); possible loop")
 
@@ -128,8 +129,9 @@ def main() -> None:
     parser.add_argument("instructions", type=Path)
     parser.add_argument("--trace", type=Path, help="Write PC/instruction/writeback CSV")
     parser.add_argument("--max-steps", type=int, default=10000)
+    parser.add_argument("--base", type=lambda value: int(value, 0), default=0, help="Instruction memory base address")
     args = parser.parse_args()
-    model = RV32I(read_words(args.instructions))
+    model = RV32I(read_words(args.instructions), base=args.base)
     trace = model.run(args.max_steps)
     if args.trace:
         with args.trace.open("w", newline="", encoding="utf-8") as output:

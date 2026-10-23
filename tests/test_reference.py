@@ -1,6 +1,7 @@
 import unittest
 from tools.rv32i_reference import RV32I
 from tools.compare_traces import compare
+from tools.build_test_vectors import TEXT_BASE, DATA_BASE, directed_program, branch_edges_program, random_alu_program
 
 
 class RV32ITests(unittest.TestCase):
@@ -22,6 +23,39 @@ class RV32ITests(unittest.TestCase):
         model.run()
         self.assertEqual(model.reg[2], 0)
         self.assertEqual(model.reg[3], 2)
+
+    def test_directed_vector_oracle(self):
+        model = RV32I(directed_program(), base=TEXT_BASE)
+        trace = model.run()
+        self.assertEqual(len(trace), 26)  # Four wrong-path instructions are skipped.
+        self.assertEqual(sum(rd != 0 for _, _, rd, _ in trace), 21)
+        self.assertEqual(model.reg[11], TEXT_BASE + 16 * 4)
+        self.assertEqual(model.reg[20], 0x7fffffff)
+        self.assertEqual(model.reg[21], 0xffffffff)
+        self.assertEqual(model.load(DATA_BASE, 4, False), 12)
+        self.assertEqual(model.load(DATA_BASE + 4, 4, False), 4)
+        self.assertEqual(model.load(DATA_BASE + 8, 1, False), 255)
+
+    def test_branch_edges_and_subword_memory(self):
+        model = RV32I(branch_edges_program(), base=TEXT_BASE)
+        trace = model.run()
+        self.assertEqual(len(trace), 18)
+        self.assertEqual(sum(rd != 0 for _, _, rd, _ in trace), 12)
+        self.assertEqual(model.reg[4], 1)
+        self.assertEqual(model.reg[5], 1)
+        self.assertEqual(model.reg[6], 6)
+        self.assertEqual(model.reg[10], 0x00ff0008)
+        self.assertEqual(model.load(DATA_BASE + 4, 4, False), 7)
+
+    def test_seeded_random_alu_stream(self):
+        words = random_alu_program()
+        self.assertEqual(words, random_alu_program())
+        model = RV32I(words, base=TEXT_BASE)
+        trace = model.run()
+        self.assertEqual(len(trace), 82)
+        self.assertEqual(sum(rd != 0 for _, _, rd, _ in trace), 80)
+        self.assertEqual(model.reg[0], 0)
+        self.assertEqual(model.load(DATA_BASE + 4, 4, False), 9)
 
     def test_invalid_instruction_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "Unsupported instruction"):

@@ -10,3 +10,5 @@ transcript
 __pycache__/
 *.pyc
 trace.csv
+build/
+modelsim.ini
