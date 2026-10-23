@@ -1,6 +1,6 @@
 # RISC-V Verification Coursework
 
-A SystemVerilog coursework project exploring stimulus generation and a behavioral reference model for a provided RISC-V processor design. The work was completed for an HDL verification course during the 2023?2024 academic year.
+A SystemVerilog coursework project exploring stimulus generation and a behavioral reference model for a provided RISC-V processor design. The original files were produced for a master's-level HDL verification course.
 
 For a stage-by-stage account of the assignment and saved submissions, see [Coursework map](docs/coursework.md).
 
